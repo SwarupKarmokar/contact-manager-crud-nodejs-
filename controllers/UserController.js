@@ -1,6 +1,8 @@
 const asyncHandler = require('express-async-handler');
 const User = require('../models/UserSchema');
 const bcrypt = require('bcrypt');
+require('dotenv').config();
+const jwt = require('jsonwebtoken');
 
 // @desc: Register a user
 // @route: POST /api/user/register
@@ -40,9 +42,33 @@ const registerUser = asyncHandler(async (req, res) => {
 // @access: public
 
 const loginUser = asyncHandler(async (req, res) => {
-    res.status(200).json({
-        message: "this is sign in page"
-    })
+    const {email, password} = req.body;
+    if (!email || !password) {
+        res.status(400);
+        throw new Error("All fields are mandatory");
+    }
+
+    const user = await User.findOne({email});
+
+    // COMPARE PASSWORD WITH HASH PASSWORD 
+    if (user && bcrypt.compare(password, user.password)) {
+        const accessToken = jwt.sign(
+            {
+                user: {
+                    username: user.username,
+                    email: user.email,
+                    id: user.id
+                }
+            }, process.env.SECRET_KEY, {expiresIn: '10m'}
+        )
+        res.status(200).json({
+            accessToken
+        })
+    }
+    else {
+        res.status(401);
+        throw new Error("Email || Password not valid");
+    }
 })
 
 
@@ -52,7 +78,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
 const currentUser = asyncHandler(async (req, res) => {
     res.status(200).json({
-        message: "this is current page"
+        user: req.user
     })
 })
 
